@@ -6,7 +6,7 @@ Vulkan. Mesa **26.3.0-devel**. The upstream Mesa README is
 
 | Branch | Contents |
 | --- | --- |
-| `integration/aurora` | Aurora native GPU work plus Omacom integration fixes. Packages build from here. |
+| `integration/aurora` | Aurora native GPU work plus Omacom integration fixes. Packages are meant to build from here. |
 | `main`, `26.2` | Stock Mesa mirrors. Never force-pushed. |
 
 The Aurora import brings in DJ's Neo/G17P work, Eryk Wieliczko's native M3 Pro
@@ -20,7 +20,7 @@ with original commits, authors, copyrights and licenses kept.
 | M1/M2, AGX2 | Existing Asahi/Honeykrisp paths |
 | M3 Pro, T6030 / G15S, legacy firmware with native AGX3 shaders | Native GL/Vulkan; boot and pixel checks passed on J516S |
 | M3 Max, T6031 / G15C, single die / four clusters | Native admission; not yet tested on hardware here |
-| M3 Air, T8122 / G15G, legacy 14.x firmware | Enabled by default for its exact identity and kernel contract; J613 desktop, texture, MSAA and compute checks reported passing; J615 not yet tested |
+| M3 Air, T8122 / G15G, legacy 14.x firmware | Enabled by default for its exact identity and kernel contract; J613 desktop, texture, MSAA and compute checks [reported passing](https://github.com/omacom/omarchy-pkgs/pull/1591#issuecomment-6393944044); J615 not yet tested |
 | Neo / A18 Pro, T8140 / G17P, HAL200 | DJ's AGX3b stack with its feature restrictions |
 | M3 Ultra, M4, M5 | Refused |
 
@@ -43,11 +43,12 @@ kernel whose version merely looks similar.
 
 ## Build and check
 
-Pull requests run `ci / result`: CPU fixtures, kernel UAPI checks, x86_64 and
-aarch64 builds, every configured Meson test and drm-shim Vulkan probes. See
+Pull requests run `ci / result`: CPU fixtures and kernel UAPI checks always,
+plus x86_64 and aarch64 builds, every configured Meson test and drm-shim Vulkan
+probes unless the PR only touches a short list of documentation files. See
 [.github/mesa-ci/README.md](.github/mesa-ci/README.md). A push to
-`integration/aurora` also produces an attested ARM staging archive. That is a
-debug build, not a package.
+`integration/aurora` also produces an attested ARM staging archive. It is a
+`debugoptimized` build with assertions enabled, not a package.
 
 Local quick checks need a C compiler and Python 3:
 
@@ -55,7 +56,8 @@ Local quick checks need a C compiler and Python 3:
 python3 tools/siliconforest/check.py
 ```
 
-Full build with the host suite:
+A full build needs the Mesa toolchain and development libraries; on Ubuntu
+26.04, [.github/mesa-ci/deps.sh](.github/mesa-ci/deps.sh) installs them. Then:
 
 ```sh
 python3 -m venv ../mesa-venv
@@ -71,8 +73,9 @@ A source build installs nothing and changes no boot stack.
 
 `mesa-aurora` and `vulkan-aurora` in
 [omacom/omarchy-pkgs](https://github.com/omacom/omarchy-pkgs/tree/master/pkgbuilds/mesa-aurora)
-pin an exact `integration/aurora` commit. Hardware qualification happens on the
-edge channel.
+pin an exact source commit. They still pin Aurora until
+[omarchy-pkgs#1591](https://github.com/omacom/omarchy-pkgs/pull/1591) moves them
+to `integration/aurora`. Hardware qualification happens on the edge channel.
 
 ## Provenance
 

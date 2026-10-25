@@ -1,8 +1,9 @@
 # Maintaining Omacom Mesa
 
-`integration/aurora` is the integration branch. It is protected: changes land
-through a pull request with a green `ci / result` and an approval of the latest
-push, as a merge commit. Keep original contributor commits and licensing
+`integration/aurora` is the integration branch. Changes land through a pull
+request with a green `ci / result` and an approval of the latest push, as a
+merge commit. Until an admin adds the branch ruleset, maintainers enforce this
+by hand. Keep original contributor commits and licensing
 intact; when a change needs adapting, use `git cherry-pick -x` and record how
 the conflict was resolved.
 

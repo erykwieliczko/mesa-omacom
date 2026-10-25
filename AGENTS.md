@@ -18,7 +18,9 @@ policy, edit this file in a reviewed pull request.
 - Hardware qualification happens on the edge package channel, on the affected
   machines, before a change is promoted beyond edge. Record the exact source
   commit that was built and tested.
-- Keep identity, firmware and kernel-ABI admission checks fail-closed. Do not
-  enable an unqualified GPU generation or weaken admission to make one start.
+- Keep identity, firmware and kernel-ABI admission checks fail-closed. Admit a
+  GPU only for an exact, supported identity and kernel contract, and never
+  weaken admission to make another one start. Hardware qualification of an
+  admitted GPU can still be pending on edge.
 - A source build must not install Mesa, change a boot stack or reboot a
   machine as a side effect.
