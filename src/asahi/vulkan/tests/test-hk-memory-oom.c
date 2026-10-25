@@ -12,6 +12,7 @@
 #include "wsi_common_private.h"
 #include "wsi_common_entrypoints.h"
 #include "drm-uapi/drm_fourcc.h"
+#include "util/os_misc.h"
 
 #include <assert.h>
 #include <stdarg.h>
@@ -38,6 +39,28 @@ __typeof__(agx_bo_cache_evict_all) __real_agx_bo_cache_evict_all;
 __typeof__(agx_bo_export) __wrap_agx_bo_export;
 __typeof__(hk_get_cgroup_memory_available) __wrap_hk_get_cgroup_memory_available;
 __typeof__(__vk_errorf) __wrap___vk_errorf;
+__typeof__(os_get_available_system_memory) __wrap_os_get_available_system_memory;
+__typeof__(os_get_total_physical_memory) __wrap_os_get_total_physical_memory;
+
+/* The reserve check reads real RAM in production. Fixed values keep this test
+ * independent of the machine it runs on. */
+static uint64_t fake_available = UINT64_C(64) * 1024 * MIB;
+static uint64_t fake_total = UINT64_C(32) * 1024 * MIB;
+static bool evict_frees_memory;
+
+bool
+__wrap_os_get_available_system_memory(uint64_t *size)
+{
+   *size = fake_available;
+   return true;
+}
+
+bool
+__wrap_os_get_total_physical_memory(uint64_t *size)
+{
+   *size = fake_total;
+   return true;
+}
 
 /* Mock only backend allocation/close and VM_BIND. BO cache insertion, fetch,
  * reference counting, VA release and WSI object cleanup use production code. */
@@ -95,6 +118,8 @@ void
 __wrap_agx_bo_cache_evict_all(struct agx_device *dev)
 {
    ++trims;
+   if (evict_frees_memory)
+      fake_available = UINT64_C(64) * 1024 * MIB;
    cached = 0;
    __real_agx_bo_cache_evict_all(dev);
 }
@@ -450,6 +475,29 @@ main(void)
    passing = 4;
    assert(alloc(dev, 1024 * MIB, &memory) == VK_SUCCESS);
    hk_FreeMemory(hk_device_to_handle(dev), memory, &allocator);
+   assert(!pinned && !host_live && !kernel_oom_attempts);
+
+   /* The free-memory reserve is max(1 GiB, 2% of RAM), 1 GiB for 32 GiB of
+    * RAM. One byte short of size plus reserve is refused before any BO is
+    * allocated, and the BO cache is given back first. Exactly enough passes. */
+   fake_available = 2048 * MIB - 1;
+   before = bo_calls;
+   old_trims = trims;
+   assert(alloc(dev, 1024 * MIB, &memory) == VK_ERROR_OUT_OF_DEVICE_MEMORY);
+   assert(bo_calls == before && trims == old_trims + 1);
+   fake_available = 2048 * MIB;
+   assert(alloc(dev, 1024 * MIB, &memory) == VK_SUCCESS);
+   hk_FreeMemory(hk_device_to_handle(dev), memory, &allocator);
+
+   /* Giving the BO cache back raises the available memory: the retry passes. */
+   fake_available = 1024 * MIB;
+   evict_frees_memory = true;
+   old_trims = trims;
+   assert(alloc(dev, 1024 * MIB, &memory) == VK_SUCCESS);
+   assert(trims == old_trims + 1);
+   hk_FreeMemory(hk_device_to_handle(dev), memory, &allocator);
+   evict_frees_memory = false;
+
    assert(!pinned && !host_live && !kernel_oom_attempts);
    wsi_headless_finish_wsi(&pdev->wsi_device, vk_default_allocator());
    vk_object_base_finish(&dev->vk.base);
