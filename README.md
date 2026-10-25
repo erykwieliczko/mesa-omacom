@@ -20,7 +20,7 @@ with original commits, authors, copyrights and licenses kept.
 | M1/M2, AGX2 | Existing Asahi/Honeykrisp paths |
 | M3 Pro, T6030 / G15S, legacy firmware with native AGX3 shaders | Native GL/Vulkan; boot and pixel checks passed on J516S |
 | M3 Max, T6031 / G15C, single die / four clusters | Native admission; not yet tested on hardware here |
-| M3 Air, T8122 / G15G, legacy 14.x firmware | Enabled by default for its exact identity and kernel contract; J613 desktop, texture, MSAA and compute checks [reported passing](https://github.com/omacom/omarchy-pkgs/pull/1591#issuecomment-6393944044); J615 not yet tested |
+| M3 Air, T8122 / G15G, legacy 14.x firmware | Enabled by default for its exact identity and kernel contract; J613 desktop, texture, MSAA and compute checks [passed](https://github.com/omacom/omarchy-pkgs/pull/1591#issuecomment-6393944044) on `97a65d8`, whose driver code matches this branch; J615 not yet tested |
 | Neo / A18 Pro, T8140 / G17P, HAL200 | DJ's AGX3b stack with its feature restrictions |
 | M3 Ultra, M4, M5 | Refused |
 
