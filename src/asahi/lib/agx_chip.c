@@ -257,6 +257,7 @@ agx_chip_driver_supported(enum agx_chip chip)
              agx_chip_sampler_generation(chip) ==
                 AGX_SAMPLER_GENERATION_GEN4_HAL200 &&
              agx_chip_submission_model(chip) == AGX_SUBMISSION_MODEL_DUAL;
+   case AGX_CHIP_G15G:
    case AGX_CHIP_G15S:
    case AGX_CHIP_G15C:
       return agx_chip_command_stream_generation(chip) ==
@@ -282,7 +283,8 @@ agx_params_driver_supported(const struct drm_asahi_params_global *params)
       return false;
 
    const enum agx_chip chip = agx_chip_from_params(params);
-   if (!agx_chip_driver_supported(chip))
+   if (!agx_chip_driver_supported(chip) || params->chip_id == 0x6040 ||
+       params->chip_id == 0x8132)
       return false;
 
    switch (chip) {
@@ -298,6 +300,14 @@ agx_params_driver_supported(const struct drm_asahi_params_global *params)
              params->usc_generation == AGX_ISA_AGX3 &&
              params->gpu_hal_generation == DRM_ASAHI_GPU_HAL_200;
    }
+   case AGX_CHIP_G15G:
+      /* T8122/M3: one die, one cluster, AGX3 shaders on the legacy firmware
+       * interface (14.8.3), through the kernel's T8122 runtime. The exact
+       * identity/runtime checks apply without a Mesa environment opt-in. */
+      return params->chip_id == 0x8122 && params->num_dies == 1 &&
+             params->num_clusters_total == 1 &&
+             params->usc_generation == AGX_ISA_AGX3 &&
+             params->gpu_hal_generation == DRM_ASAHI_GPU_HAL_LEGACY;
    case AGX_CHIP_G15S:
       /* T6030/M3 Pro: one die, two clusters, AGX3 shaders on the legacy
        * (pre-HAL200) firmware interface. */
@@ -321,6 +331,33 @@ agx_params_driver_supported(const struct drm_asahi_params_global *params)
    default:
       return true;
    }
+}
+
+/* G15G uses the separately admitted T8122 runtime: its baseline advertises
+ * VM_STATUS and SCHEDULED_QUEUES, not exact-prior barriers. Other native
+ * profiles use the unified high-bit prior-command contract. Refuse a known
+ * mismatch before VM creation; these checks are not general ABI negotiation.
+ */
+bool
+agx_params_native_kernel_abi_supported(
+   const struct drm_asahi_params_global *params)
+{
+   if (!params)
+      return false;
+
+   const enum agx_chip chip = agx_chip_from_params(params);
+   if (!agx_chip_native_agx3(chip))
+      return true;
+
+   if (chip == AGX_CHIP_G15G) {
+      const uint64_t required = DRM_ASAHI_FEATURE_VM_STATUS |
+                                DRM_ASAHI_FEATURE_SCHEDULED_QUEUES;
+      return (params->features & required) == required;
+   }
+
+   const uint64_t required = DRM_ASAHI_FEATURE_PER_COMMAND_INPUT_SYNCS |
+                             DRM_ASAHI_FEATURE_EXACT_PRIOR_BARRIERS;
+   return (params->features & required) == required;
 }
 
 const char *

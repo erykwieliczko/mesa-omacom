@@ -1,19 +1,13 @@
-# Aurora Silicon assistant policy
+# SiliconForest Mesa maintenance
 
-This is Aurora Silicon's own policy for AI coding assistants working in
-this repository. It is the only assistant instruction file this tree
-carries. Upstream projects' instruction files are never carried here.
+This is iconidentify's personally maintained downstream fork. The owner has
+authorized AI-assisted research, review, source integration and development here.
+The upstream community's contribution policy still applies to submissions there;
+do not open upstream issues, comments or merge requests without explicit owner
+instructions.
 
-AGENTS.md, CLAUDE.md, GEMINI.md and .github/copilot-instructions.md are
-copies of .github/aurora/AGENTS.md. The aurora-agent-policy workflow
-puts them back if anything else replaces them, including an upstream
-merge. To change the policy, edit .github/aurora/AGENTS.md.
-
-## Rules
-
-- Only public code goes in. Never copy code from proprietary sources.
-- Changes are tested on the hardware they affect before they are merged.
-
-## To be expanded
-
-Build, test and review conventions for this repository will go here.
+Preserve contributor identities, original commits, licenses and source provenance.
+Label newly generated commits with `Generated-by: LLM`. Record which exact source
+was built and tested. Host or drm-shim checks do not prove hardware correctness.
+Do not enable an unqualified GPU, weaken firmware/ABI admission, install into a
+host system, or reboot a test machine as a side effect of a source build.

@@ -68,7 +68,9 @@ static const struct drm_asahi_params_global params_g13g = {
  * shader and command-stream paths can be exercised without hardware.
  */
 static const struct drm_asahi_params_global params_g17p = {
-   .features = DRM_ASAHI_FEATURE_SOFT_FAULTS,
+   .features = DRM_ASAHI_FEATURE_SOFT_FAULTS |
+               DRM_ASAHI_FEATURE_PER_COMMAND_INPUT_SYNCS |
+               DRM_ASAHI_FEATURE_EXACT_PRIOR_BARRIERS,
    .gpu_generation = 17,
    .gpu_variant = 'P',
    .gpu_revision = 0,
@@ -154,14 +156,16 @@ static const struct drm_asahi_params_global params_g15s = {
  * T6031 / M3 Max: the same G15 generation as T6030 with twice the clusters.
  * One die, four clusters of ten cores (the 40-core part, every core present),
  * revision B2 (0x12), AGX3 shaders on the legacy firmware interface, and the
- * top GPU clock of the J516C, 1380 MHz. No optional feature is reported, so
+ * top GPU clock of the J516C, 1380 MHz. Only the native ABI contract bits are
+ * reported by default, so
  * the driver takes its baseline submission paths; the ASAHI_SHIM_* feature
  * switches add bits on top. Submissions go through the same packet rules and
  * stream gate as G15S, and the same per-VM kernel range is refused for binds.
  * Select with ASAHI_SHIM_CHIP=g15c.
  */
 static const struct drm_asahi_params_global params_g15c = {
-   .features = 0,
+   .features = DRM_ASAHI_FEATURE_PER_COMMAND_INPUT_SYNCS |
+               DRM_ASAHI_FEATURE_EXACT_PRIOR_BARRIERS,
    .gpu_generation = 15,
    .gpu_variant = 'C',
    .gpu_revision = 0x12,
@@ -176,6 +180,30 @@ static const struct drm_asahi_params_global params_g15c = {
    .max_commands_per_submission = 64,
    .max_attachments = 16,
    .max_frequency_khz = 1380000,
+   .command_timestamp_frequency_hz = 1000000000,
+   .usc_generation = 3,
+   .gpu_hal_generation = DRM_ASAHI_GPU_HAL_LEGACY,
+};
+
+/* Synthetic G15G contract for host-only device/allocator checks. The feature
+ * baseline matches Aurora m3_drm.rs; this is not a hardware execution model. */
+static const struct drm_asahi_params_global params_g15g = {
+   .features = DRM_ASAHI_FEATURE_VM_STATUS |
+               DRM_ASAHI_FEATURE_SCHEDULED_QUEUES,
+   .gpu_generation = 15,
+   .gpu_variant = 'G',
+   .gpu_revision = 0x20,
+   .chip_id = 0x8122,
+   .num_dies = 1,
+   .num_clusters_total = 1,
+   .num_cores_per_cluster = 10,
+   .core_masks = {0x3ff},
+   .vm_start = 0x4000,
+   .vm_end = 0x2ffffff8000ull,
+   .vm_kernel_min_size = 0x20000000,
+   .max_commands_per_submission = 64,
+   .max_attachments = 16,
+   .max_frequency_khz = 618000,
    .command_timestamp_frequency_hz = 1000000000,
    .usc_generation = 3,
    .gpu_hal_generation = DRM_ASAHI_GPU_HAL_LEGACY,
@@ -201,6 +229,8 @@ shim_params(void)
       return &params_g17p;
    if (chip && !strcmp(chip, "g15s"))
       return &params_g15s;
+   if (chip && !strcmp(chip, "g15g"))
+      return &params_g15g;
    if (chip && !strcmp(chip, "g15c"))
       return &params_g15c;
    if (chip && !strcmp(chip, "g16g"))
@@ -1238,6 +1268,19 @@ asahi_ioctl_vm_bind_unlocked(int fd, unsigned long request, void *arg)
                  (unsigned long long)start, (unsigned long long)end,
                  (unsigned long long)SHIM_G17P_RENDER_AUX_ALIAS_START,
                  (unsigned long long)SHIM_G17P_RENDER_AUX_ALIAS_END);
+         return -EINVAL;
+      }
+
+      if (params == &params_g15g &&
+          (range_overlaps(start, op->range, UINT64_C(0x7000000000),
+                          UINT64_C(0x1000000000)) ||
+           range_overlaps(start, op->range, UINT64_C(0x10080000000),
+                          UINT64_C(0x80000000)) ||
+           range_overlaps(start, op->range, UINT64_C(0x1000000000),
+                          UINT64_C(0x8000000)) ||
+           range_overlaps(start, op->range, UINT64_C(0x1074000000),
+                          UINT64_C(0x28000)))) {
+         fprintf(stderr, "shim: gem_bind overlaps a T8122 runtime reservation\n");
          return -EINVAL;
       }
 
