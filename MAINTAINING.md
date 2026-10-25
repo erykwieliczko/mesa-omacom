@@ -1,49 +1,35 @@
-# Maintaining SiliconForest Mesa
+# Maintaining Omacom Mesa
 
-The default integration is `siliconforest/next`. Keep original contributor
-commits and licensing intact; use merges or `git cherry-pick -x` with a written
-record of any conflict resolution. Label newly generated commits as described
-in `AGENTS.md`.
+`integration/aurora` is the integration branch. It is protected: changes land
+through a pull request with a green `ci / result` and an approval of the latest
+push, as a merge commit. Keep original contributor commits and licensing
+intact; when a change needs adapting, use `git cherry-pick -x` and record how
+the conflict was resolved.
 
-## Reviewing a source update
+## Taking a source update
 
-1. Check the source repository's visibility before including its refs or code in
-   a publication. For GitHub, use `gh api repos/OWNER/REPO --jq .visibility`.
-   Private-source work stays in local research refs and notes. This public
-   integration contains public-source code only.
-2. Pin the exact source SHA, compare divergence against the current integration,
-   and review dependencies and duplicate implementations. A newer topic name is
-   not proof that it includes another branch's fixes.
+1. Check that the source repository is public before pulling its refs or code
+   in. This tree contains public code only.
+2. Pin the exact source SHA. Compare it against `integration/aurora` and review
+   dependencies and duplicate implementations. A newer topic branch is not proof
+   that it includes another branch's fixes.
 3. Keep identity, topology, USC, HAL and kernel-ABI admission checks intact.
    Hardware recognition and shader encoding alone do not establish support.
-4. Update `SILICONFOREST-SOURCES.json` and the review ledger. Source tags preserve
-   evidence; their existence does not mean every experiment is approved for the
-   default build.
+4. Update `SILICONFOREST-SOURCES.json` and the review ledger when the source
+   inventory changes.
 
-## Checking the integration
+## Checking
 
-Run the quick checks, build the affected drivers and all registered Asahi test
-dependencies, and run the host suite. For changes around device setup, mappings
-or synchronization, also run the Vulkan drm-shim regression probe with Khronos
-validation enabled. Commands and the exact baseline results are in
-`SILICONFOREST-VALIDATION.md`.
+CI builds both architectures and runs the host suite and drm-shim probes on
+every non-documentation pull request. For changes around device setup,
+mappings or synchronization, also read the drm-shim probe output, not just the
+gate result. Changes to `.github/workflows/` or `.github/mesa-ci/` can change
+what the gate checks, so review them as carefully as driver code.
 
-`check.py --check-git` works with local maintainer branches or the corresponding
-`origin/*` refs in a fresh full clone. It verifies exact source tags and the
-limited changes to compatibility profiles. The quick GitHub workflow runs
-without requiring all historical source tags or a complete Mesa build.
+## Shipping
 
-## Publishing source
-
-Push explicit branch/tag refs from the reviewed source manifest. Do not use an
-unrestricted `--mirror`, `--all` or `--tags` push from a research checkout that
-also holds private or unreviewed refs. For a new repository, keep it private until
-its remote ref set and source access checks match the intended public inventory.
-Cancelling a local wrapper process is not proof that its upload children stopped.
-
-Keep experimental firmware/driver profiles separate. Before publishing installable
-packages, qualify the exact board, firmware, m1n1 handoffs and kernel ABI on
-hardware, run the relevant CTS and compositor/application checks, and record the
-results against a pinned source. Host CPU tests and drm-shim checks do not replace
-that hardware qualification. Source maintenance must not install Mesa or alter a
-working boot stack as a side effect.
+Packages live in omacom/omarchy-pkgs (`pkgbuilds/mesa-aurora`). To ship a
+change, pin the exact merged `integration/aurora` commit there, build the split
+packages and release on edge. Qualification on the affected machines happens on
+edge, before promotion beyond it. CPU tests and drm-shim checks do not replace
+that.
